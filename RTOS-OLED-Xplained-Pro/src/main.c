@@ -108,7 +108,7 @@ void task_coins(void){
 			if (xSemaphoreTake(xSeedSemaphore, 10)){
 				uint32_t time = rtt_read_timer_value(RTT);
 				srand(time);
-				printf("Seed %d\n", time);
+				printf("Seed %u\n", time);
 			}
 			int random_number = (rand() % 3) + 1;
 			xQueueSend(xQueueCoins, &random_number, 10);

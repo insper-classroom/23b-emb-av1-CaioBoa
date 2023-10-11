@@ -8589,7 +8589,7 @@ void task_coins(void){
 				srand(time);
   40370c:	4b0c      	ldr	r3, [pc, #48]	; (403740 <task_coins+0xb4>)
   40370e:	4798      	blx	r3
-				printf("Seed %d\n", time);
+				printf("Seed %u\n", time);
   403710:	4651      	mov	r1, sl
   403712:	480c      	ldr	r0, [pc, #48]	; (403744 <task_coins+0xb8>)
   403714:	4b0c      	ldr	r3, [pc, #48]	; (403748 <task_coins+0xbc>)
@@ -17546,7 +17546,7 @@ static inline void stdio_serial_init(volatile void *usart, const usart_serial_op
   409194:	79616c70 	.word	0x79616c70
   409198:	00000000 	.word	0x00000000
   40919c:	64656553 	.word	0x64656553
-  4091a0:	0a642520 	.word	0x0a642520
+  4091a0:	0a752520 	.word	0x0a752520
   4091a4:	00000000 	.word	0x00000000
   4091a8:	6e696f43 	.word	0x6e696f43
   4091ac:	25203a73 	.word	0x25203a73
