@@ -104,23 +104,29 @@ void task_coins(void){
 	xSemaphoreGiveFromISR(xSeedSemaphore, &xHigherPriorityTaskWoken);
 	RTT_init(32000, 0, 0);
 	while(1){
-		if (xSemaphoreTake(xBtnSemaphore, 1000)){
-			if (xSemaphoreTake(xSeedSemaphore, 1000)){
+		if (xSemaphoreTake(xBtnSemaphore, 10)){
+			if (xSemaphoreTake(xSeedSemaphore, 10)){
 				uint32_t time = rtt_read_timer_value(RTT);
 				srand(time);
 				printf("Seed %d\n", time);
 			}
 			int random_number = (rand() % 3) + 1;
-			printf("Coins: %d\n", random_number);
-			//tone(NOTE_B5,  80);
-			//tone(NOTE_E6, 640);
+			xQueueSend(xQueueCoins, &random_number, 10);
 		}
 	}
 }
 
 task_play(void){
 	while(1){
-		vTaskDelay(1000);
+		int msg;
+		if(xQueueReceive(xQueueCoins, &msg, (TickType_t) 0)){
+			printf("Coins: %d\n", msg);
+			for(int i = 0; i < msg; i++){
+					tone(NOTE_B5,  80);
+					tone(NOTE_E6, 640);
+			}
+		}
+		vTaskDelay(100);
 	}
 }
 
@@ -251,7 +257,7 @@ int main(void) {
 	}
 	
 	if (xTaskCreate(task_play, "play", TASK_OLED_STACK_SIZE, NULL,
-	TASK_OLED_STACK_PRIORITY, NULL) != pdPASS) {
+	(TASK_OLED_STACK_PRIORITY + 1), NULL) != pdPASS) {
 		printf("Failed to create debug task\r\n");
 	}
 
