@@ -716,6 +716,9 @@
     <Compile Include="src\oled\gfx_mono_ug_2832hsweg04.h">
       <SubType>compile</SubType>
     </Compile>
+    <Compile Include="src\oled\music.h">
+      <SubType>compile</SubType>
+    </Compile>
     <Compile Include="src\oled\ssd1306.c">
       <SubType>compile</SubType>
     </Compile>

@@ -9,6 +9,8 @@
 #include "gfx_mono_ug_2832hsweg04.h"
 #include "gfx_mono_text.h"
 #include "sysfont.h"
+#include "music.h"
+
 
 /************************************************************************/
 /* IOS                                                                  */
@@ -19,7 +21,14 @@
 #define BTN_PIO_PIN 11
 #define BTN_PIO_PIN_MASK (1 << BTN_PIO_PIN)
 
+#define BUZZER_PIO PIOD
+#define BUZZER_PIO_ID	ID_PIOD
+#define BUZZER_PIO_IDX 31
+#define BUZZER_PIO_IDX_MASK (1u << BUZZER_PIO_IDX)
 
+QueueHandle_t xQueueCoins;
+SemaphoreHandle_t xBtnSemaphore;
+SemaphoreHandle_t xSeedSemaphore;
 
 /************************************************************************/
 /* prototypes and types                                                 */
@@ -27,6 +36,9 @@
 
 void btn_init(void);
 void RTT_init(float freqPrescale, uint32_t IrqNPulses, uint32_t rttIRQSource);
+void tone();
+void set_buzzer();
+void clear_buzzer();
 
 /************************************************************************/
 /* rtos vars                                                            */
@@ -62,10 +74,55 @@ extern void vApplicationMallocFailedHook(void) {
 /* handlers / callbacks                                                 */
 /************************************************************************/
 
-void but_callback(void) {
-
+void set_buzzer(){
+	pio_set(BUZZER_PIO, BUZZER_PIO_IDX_MASK);
 }
 
+void clear_buzzer(){
+	pio_clear(BUZZER_PIO, BUZZER_PIO_IDX_MASK);
+}
+
+void tone(int freq, int time){
+	double T = 1000.0/freq;
+	int n = (double)time/T;
+	int half_T = T * 1000/2;
+	for(int i=0; i<n; i++){
+		set_buzzer();
+		delay_us(half_T);
+		clear_buzzer();
+		delay_us(half_T);
+	}
+}
+
+void but_callback(void) {
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	xSemaphoreGiveFromISR(xBtnSemaphore, &xHigherPriorityTaskWoken);
+}
+
+void task_coins(void){
+	BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+	xSemaphoreGiveFromISR(xSeedSemaphore, &xHigherPriorityTaskWoken);
+	RTT_init(32000, 0, 0);
+	while(1){
+		if (xSemaphoreTake(xBtnSemaphore, 1000)){
+			if (xSemaphoreTake(xSeedSemaphore, 1000)){
+				uint32_t time = rtt_read_timer_value(RTT);
+				srand(time);
+				printf("Seed %d\n", time);
+			}
+			int random_number = (rand() % 3) + 1;
+			printf("Coins: %d\n", random_number);
+			//tone(NOTE_B5,  80);
+			//tone(NOTE_E6, 640);
+		}
+	}
+}
+
+task_play(void){
+	while(1){
+		vTaskDelay(1000);
+	}
+}
 
 /************************************************************************/
 /* TASKS                                                                */
@@ -91,6 +148,11 @@ static void task_debug(void *pvParameters) {
 /************************************************************************/
 
 void btn_init(void) {
+	WDT->WDT_MR = WDT_MR_WDDIS;
+	// Inicializa Buzzer
+	pmc_enable_periph_clk(BUZZER_PIO_ID);
+	pio_set_output(BUZZER_PIO, BUZZER_PIO_IDX_MASK, 0, 0, 0);
+		
 	// Inicializa clock do periférico PIO responsavel pelo botao
 	pmc_enable_periph_clk(BTN_PIO_ID);
 
@@ -166,6 +228,7 @@ static void configure_console(void) {
 /* main                                                                 */
 /************************************************************************/
 int main(void) {
+	btn_init();
 	/* Initialize the SAM system */
 	sysclk_init();
 	board_init();
@@ -173,7 +236,21 @@ int main(void) {
 	/* Initialize the console uart */
 	configure_console();
 	
+	xQueueCoins = xQueueCreate(32, sizeof(uint32_t));
+	xBtnSemaphore = xSemaphoreCreateBinary();
+	xSeedSemaphore = xSemaphoreCreateBinary();
+	
 	if (xTaskCreate(task_debug, "debug", TASK_OLED_STACK_SIZE, NULL,
+	TASK_OLED_STACK_PRIORITY, NULL) != pdPASS) {
+		printf("Failed to create debug task\r\n");
+	}
+	
+	if (xTaskCreate(task_coins, "coins", TASK_OLED_STACK_SIZE, NULL,
+	TASK_OLED_STACK_PRIORITY, NULL) != pdPASS) {
+		printf("Failed to create debug task\r\n");
+	}
+	
+	if (xTaskCreate(task_play, "play", TASK_OLED_STACK_SIZE, NULL,
 	TASK_OLED_STACK_PRIORITY, NULL) != pdPASS) {
 		printf("Failed to create debug task\r\n");
 	}
